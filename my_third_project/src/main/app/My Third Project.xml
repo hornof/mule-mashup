@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" xmlns:jdbc-ee="http://www.mulesoft.org/schema/mule/ee/jdbc" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:data-mapper="http://www.mulesoft.org/schema/mule/ee/data-mapper"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:json="http://www.mulesoft.org/schema/mule/json"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.4.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/ee/data-mapper http://www.mulesoft.org/schema/mule/ee/data-mapper/current/mule-data-mapper.xsd
+http://www.mulesoft.org/schema/mule/ee/jdbc http://www.mulesoft.org/schema/mule/ee/jdbc/current/mule-jdbc-ee.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd">
+	<flow name="My_Third_ProjectFlow1" doc:name="My_Third_ProjectFlow1">
+		<http:inbound-endpoint exchange-pattern="request-response"
+			host="localhost" port="8081" doc:name="HTTP" />
+        <scripting:component doc:name="Groovy">
+            <scripting:script engine="Groovy"><![CDATA[return payload.minus('/')]]></scripting:script>
+        </scripting:component>
+		<http:outbound-endpoint exchange-pattern="request-response"
+			host="ws.audioscrobbler.com" port="80"
+			path="2.0/?method=geo.getmetroartistchart&amp;country=#[message.inboundProperties['http.query.params'].get(&quot;country&quot;)]&amp;metro=#[message.inboundProperties['http.query.params'].get(&quot;city&quot;)]&amp;api_key=a7b5d6873ba983e70be73d5106a61ebc&amp;format=json&amp;limit=5"
+			method="GET" doc:name="HTTP" />
+        <json:json-to-object-transformer returnClass="java.util.Map" doc:name="JSON to Object"/>
+        <scripting:component doc:name="Groovy">
+            <scripting:script engine="Groovy"><![CDATA[return payload.get("topartists").get("artist")]]></scripting:script>
+        </scripting:component>
+        <scripting:component doc:name="Groovy">
+            <scripting:script engine="Groovy"><![CDATA[return payload[0].get("name")]]></scripting:script>
+        </scripting:component>
+        <http:outbound-endpoint exchange-pattern="request-response" host="musicbrainz.org" port="80" path="ws/2/artist/?query=artist:#[payload]&amp;fmt=json" method="GET" doc:name="HTTP"/>
+        <json:json-to-object-transformer returnClass="java.util.Map" doc:name="JSON to Object"/>
+        <scripting:component doc:name="Groovy">
+            <scripting:script engine="Groovy"><![CDATA[def artist = payload.get("artist")[0]
+def name = artist.get("name")
+def hometown = artist.get("area").get("name")
+return name + ", " + hometown]]></scripting:script>
+        </scripting:component>
+		<logger level="INFO" doc:name="Logger" />
+	</flow>
+</mule>
